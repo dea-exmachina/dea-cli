@@ -113,7 +113,7 @@ brews:
     homepage: "https://github.com/dea-exmachina/dea-cli"
     description: "dea CLI — command-line interface for the dea-exmachina agent system"
     license: "MIT"
-    folder: Formula
+    directory: Formula
     install: |
       bin.install "dea"
     test: |
