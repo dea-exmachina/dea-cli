@@ -1,0 +1,120 @@
+# .goreleaser.yml
+# GoReleaser v2 — free tier, no Pro required
+version: 2
+
+project_name: dea
+
+before:
+  hooks:
+    - go mod tidy
+    - go generate ./...
+
+builds:
+  - id: dea
+    main: ./cmd/dea
+    binary: dea
+    env:
+      - CGO_ENABLED=0
+    goos:
+      - linux
+      - darwin
+      - windows
+    goarch:
+      - amd64
+      - arm64
+    # Exclude windows/arm64 — not a target platform
+    ignore:
+      - goos: windows
+        goarch: arm64
+    ldflags:
+      - -s -w
+      - -X main.version={{.Version}}
+      - -X main.commit={{.Commit}}
+      - -X main.date={{.Date}}
+
+archives:
+  - id: dea-archive
+    builds:
+      - dea
+    name_template: >-
+      {{ .ProjectName }}_
+      {{- .Version }}_
+      {{- .Os }}_
+      {{- .Arch }}
+    # tar.gz for unix, zip for windows
+    format_overrides:
+      - goos: windows
+        format: zip
+    files:
+      - README.md
+      - LICENSE
+
+checksum:
+  name_template: "checksums.txt"
+  algorithm: sha256
+
+snapshot:
+  name_template: "{{ incpatch .Version }}-next"
+
+changelog:
+  sort: asc
+  use: github
+  filters:
+    exclude:
+      - "^docs:"
+      - "^test:"
+      - "^ci:"
+      - "^chore:"
+      - Merge pull request
+      - Merge branch
+  groups:
+    - title: "Breaking Changes"
+      regexp: "^.*!:.*$"
+      order: 0
+    - title: "New Features"
+      regexp: "^feat.*"
+      order: 1
+    - title: "Bug Fixes"
+      regexp: "^fix.*"
+      order: 2
+    - title: "Other"
+      order: 999
+
+release:
+  github:
+    owner: dea-exmachina
+    name: dea-cli
+  draft: false
+  prerelease: auto
+  # prerelease: auto marks as pre-release if tag contains - (e.g. v1.0.0-beta.1)
+  name_template: "{{.ProjectName}} {{.Tag}}"
+  footer: |
+    ## Install
+
+    ```bash
+    curl -fsSL https://raw.githubusercontent.com/dea-exmachina/dea-cli/main/install.sh | sh
+    ```
+
+    Or via Homebrew:
+    ```bash
+    brew install dea-exmachina/tap/dea
+    ```
+
+brews:
+  - name: dea
+    repository:
+      owner: dea-exmachina
+      name: homebrew-tap
+      token: "{{ .Env.HOMEBREW_TAP_GITHUB_TOKEN }}"
+    commit_author:
+      name: goreleaserbot
+      email: bot@goreleaser.com
+    commit_msg_template: "Brew formula update for {{ .ProjectName }} version {{ .Tag }}"
+    homepage: "https://github.com/dea-exmachina/dea-cli"
+    description: "dea CLI — command-line interface for the dea-exmachina agent system"
+    license: "MIT"
+    folder: Formula
+    install: |
+      bin.install "dea"
+    test: |
+      system "#{bin}/dea", "--version"
