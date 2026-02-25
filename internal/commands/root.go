@@ -104,19 +104,3 @@ func initGlobals() error {
 	return nil
 }
 
-// apiPost wraps a POST call with offline queue support on network errors.
-func apiPost(path string, body interface{}) ([]byte, error) {
-	resp, err := apiClient.Post(path, body)
-	if err != nil {
-		if api.IsNetworkError(err) {
-			if qErr := offQueue.Add("POST", path, body); qErr != nil {
-				fmt.Fprintf(os.Stderr, "failed to queue request: %v\n", qErr)
-			} else {
-				fmt.Println("Queued offline. Will flush on next connection.")
-			}
-			return nil, err
-		}
-		return nil, err
-	}
-	return resp, nil
-}
