@@ -86,7 +86,7 @@ func newArtifactPushCommand() *cobra.Command {
 		Use:   "push",
 		Short: "Push staged artifacts for a card to the workspace API",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			mustLoadToken()
+			token := mustLoadToken()
 
 			if cardID == "" {
 				data, err := os.ReadFile(".dea-context/.current-card")
@@ -120,7 +120,7 @@ func newArtifactPushCommand() *cobra.Command {
 
 			pushedCount := 0
 			for _, artifact := range toPush {
-				if err := pushArtifact(artifact.FilePath, cardID); err != nil {
+				if err := pushArtifact(artifact.FilePath, cardID, token.WorkspaceID); err != nil {
 					return fmt.Errorf("failed to push %s: %w", artifact.FilePath, err)
 				}
 				pushedCount++
@@ -140,7 +140,7 @@ func newArtifactPushCommand() *cobra.Command {
 	return cmd
 }
 
-func pushArtifact(filePath, cardID string) error {
+func pushArtifact(filePath, cardID, workspaceID string) error {
 	f, err := os.Open(filePath)
 	if err != nil {
 		return fmt.Errorf("cannot open file: %w", err)
@@ -164,6 +164,7 @@ func pushArtifact(filePath, cardID string) error {
 	fileType := inferFileType(filename)
 
 	body := map[string]interface{}{
+		"workspace_id": workspaceID,
 		"card_id":      cardID,
 		"filename":     filename,
 		"file_type":    fileType,

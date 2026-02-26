@@ -18,7 +18,7 @@ func newDoneCommand() *cobra.Command {
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			cardID := args[0]
-			mustLoadToken()
+			token := mustLoadToken()
 
 			// Step 1: Push staged artifacts if any exist.
 			staged, err := loadStagedArtifacts()
@@ -45,7 +45,7 @@ func newDoneCommand() *cobra.Command {
 
 					pushedCount := 0
 					for _, artifact := range toPush {
-						if err := pushArtifact(artifact.FilePath, cardID); err != nil {
+						if err := pushArtifact(artifact.FilePath, cardID, token.WorkspaceID); err != nil {
 							fmt.Fprintf(os.Stderr, "warning: failed to push %s: %v\n", artifact.FilePath, err)
 							continue
 						}
@@ -61,7 +61,7 @@ func newDoneCommand() *cobra.Command {
 
 			// Step 2: Transition card to review.
 			fmt.Printf("Transitioning card %s to review...\n", cardID)
-			transitionBody := map[string]string{"stage": "review"}
+			transitionBody := map[string]string{"target_lane": "review"}
 			_, err = apiClient.Post(api.CardTransitionPath(cardID), transitionBody)
 			if err != nil {
 				if isNetworkErr(err) {
@@ -78,17 +78,19 @@ func newDoneCommand() *cobra.Command {
 			// Step 3: Optionally emit a pattern signal with the summary.
 			if summary != "" {
 				summary = strings.TrimSpace(summary)
-				signals := []map[string]string{
-					{
-						"card_id":     cardID,
-						"signal_type": "pattern",
-						"content":     summary,
+				signalBody := map[string]interface{}{
+					"signals": []map[string]string{
+						{
+							"card_id":     cardID,
+							"signal_type": "pattern",
+							"content":     summary,
+						},
 					},
 				}
-				_, err = apiClient.Post(api.PathSignals, signals)
+				_, err = apiClient.Post(api.PathSignals, signalBody)
 				if err != nil {
 					if isNetworkErr(err) {
-						if qErr := offQueue.Add("POST", api.PathSignals, signals); qErr == nil {
+						if qErr := offQueue.Add("POST", api.PathSignals, signalBody); qErr == nil {
 							fmt.Println("Queued signal offline. Will flush on next connection.")
 						}
 					} else {

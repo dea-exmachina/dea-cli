@@ -138,16 +138,29 @@ func (c *Client) RefreshToken(currentToken string) (*TokenResponse, error) {
 		return nil, fmt.Errorf("refresh failed: HTTP %d", resp.StatusCode)
 	}
 
-	var tokenResp TokenResponse
-	if err := json.NewDecoder(resp.Body).Decode(&tokenResp); err != nil {
+	respBody, err := io.ReadAll(resp.Body)
+	if err != nil {
 		return nil, err
 	}
-	return &tokenResp, nil
+
+	// Edge function wraps response in { data: {...} }
+	var wrapper struct {
+		Data TokenResponse `json:"data"`
+	}
+	if err := json.Unmarshal(respBody, &wrapper); err != nil {
+		// Fall back to flat parse
+		var tokenResp TokenResponse
+		if err2 := json.Unmarshal(respBody, &tokenResp); err2 != nil {
+			return nil, err
+		}
+		return &tokenResp, nil
+	}
+	return &wrapper.Data, nil
 }
 
-// IssueToken calls token-service/issue with credentials.
+// IssueToken calls token-service/login with bootstrap credentials.
 func (c *Client) IssueToken(credentials map[string]string) (*TokenResponse, error) {
-	url := c.baseURL + PathTokenIssue
+	url := c.baseURL + PathTokenLogin
 
 	body, err := json.Marshal(credentials)
 	if err != nil {
@@ -175,11 +188,19 @@ func (c *Client) IssueToken(credentials map[string]string) (*TokenResponse, erro
 		return nil, fmt.Errorf("login failed: HTTP %d: %s", resp.StatusCode, string(respBody))
 	}
 
-	var tokenResp TokenResponse
-	if err := json.Unmarshal(respBody, &tokenResp); err != nil {
-		return nil, err
+	// Edge function wraps response in { data: {...} }
+	var wrapper struct {
+		Data TokenResponse `json:"data"`
 	}
-	return &tokenResp, nil
+	if err := json.Unmarshal(respBody, &wrapper); err != nil {
+		// Fall back to flat parse
+		var tokenResp TokenResponse
+		if err2 := json.Unmarshal(respBody, &tokenResp); err2 != nil {
+			return nil, err
+		}
+		return &tokenResp, nil
+	}
+	return &wrapper.Data, nil
 }
 
 // IsNetworkError returns true if the error is a network connectivity error.

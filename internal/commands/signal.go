@@ -40,19 +40,21 @@ func newSignalCommand() *cobra.Command {
 					signalType, strings.Join(validSignalTypes, ", "))
 			}
 
-			// API expects an array of signals.
-			signals := []map[string]string{
-				{
-					"card_id":     cardID,
-					"signal_type": signalType,
-					"content":     content,
+			// API expects { signals: [...] } wrapper.
+			body := map[string]interface{}{
+				"signals": []map[string]string{
+					{
+						"card_id":     cardID,
+						"signal_type": signalType,
+						"content":     content,
+					},
 				},
 			}
 
-			_, err := apiClient.Post(api.PathSignals, signals)
+			_, err := apiClient.Post(api.PathSignals, body)
 			if err != nil {
 				if isNetworkErr(err) {
-					if qErr := offQueue.Add("POST", api.PathSignals, signals); qErr == nil {
+					if qErr := offQueue.Add("POST", api.PathSignals, body); qErr == nil {
 						fmt.Println("Queued offline. Will flush on next connection.")
 					}
 					return nil

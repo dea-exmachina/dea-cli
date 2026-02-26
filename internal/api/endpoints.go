@@ -19,7 +19,10 @@ const (
 	// PathAutomations is the base path for automation operations.
 	PathAutomations = "/workspace-api/api/automations"
 
-	// PathTokenIssue is the token-service issue endpoint.
+	// PathTokenLogin is the token-service bootstrap login endpoint (no JWT required).
+	PathTokenLogin = "/token-service/login"
+
+	// PathTokenIssue is the token-service issue endpoint (requires JWT).
 	PathTokenIssue = "/token-service/issue"
 
 	// PathTokenRefresh is the token-service refresh endpoint.

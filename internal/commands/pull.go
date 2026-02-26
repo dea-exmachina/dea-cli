@@ -46,10 +46,20 @@ func newPullCardCommand() *cobra.Command {
 				return fmt.Errorf("failed to write context file: %w", err)
 			}
 
-			// Parse and print summary.
-			var card map[string]interface{}
-			if err := json.Unmarshal(data, &card); err == nil {
-				printCardSummary(card)
+			// Parse and print summary — handle { data: { card: {...} } } wrapper.
+			var parsed map[string]interface{}
+			if err := json.Unmarshal(data, &parsed); err == nil {
+				card := parsed
+				// Unwrap { data: ... }
+				if d, ok := parsed["data"].(map[string]interface{}); ok {
+					card = d
+				}
+				// Unwrap { card: ... } if present
+				if c, ok := card["card"].(map[string]interface{}); ok {
+					printCardSummary(c)
+				} else {
+					printCardSummary(card)
+				}
 			} else {
 				fmt.Printf("Context written to %s\n", outPath)
 			}
@@ -84,13 +94,22 @@ func newPullBoardCommand() *cobra.Command {
 
 			var cards []map[string]interface{}
 			if err := json.Unmarshal(data, &cards); err != nil {
-				// Try single object with cards array.
+				// Try { data: [...] } wrapper or { data: { cards: [...] } }.
 				var resp map[string]interface{}
 				if err2 := json.Unmarshal(data, &resp); err2 == nil {
-					if arr, ok := resp["cards"].([]interface{}); ok {
+					// { data: [...] }
+					if arr, ok := resp["data"].([]interface{}); ok {
 						for _, item := range arr {
 							if card, ok := item.(map[string]interface{}); ok {
 								cards = append(cards, card)
+							}
+						}
+					} else if d, ok := resp["data"].(map[string]interface{}); ok {
+						if arr, ok := d["cards"].([]interface{}); ok {
+							for _, item := range arr {
+								if card, ok := item.(map[string]interface{}); ok {
+									cards = append(cards, card)
+								}
 							}
 						}
 					}
