@@ -23,8 +23,14 @@ func newTransitionCommand() *cobra.Command {
 			stage := args[1]
 			mustLoadToken()
 
+			// Normalize stage name: CLI uses "in-progress" but DB uses "in_progress"
+			lane := stage
+			if lane == "in-progress" {
+				lane = "in_progress"
+			}
+
 			body := map[string]string{
-				"stage": stage,
+				"target_lane": lane,
 			}
 
 			data, err := apiClient.Post(api.CardTransitionPath(cardID), body)
